@@ -44,6 +44,7 @@ features = [
 
 [build-dependencies]
 embed-manifest = "1"
+winresource = "0.1"
 
 [profile.release]
 opt-level = "z"
