@@ -13,8 +13,6 @@ use crate::fleet::{self, Fleet};
 use crate::paths;
 use crate::win;
 
-const BORDERLESS_GAMING_STEAM_ID: u32 = 388080;
-
 struct TrayApp {
     config_path: PathBuf,
     skip_sink_check: bool,
@@ -36,8 +34,6 @@ struct MenuIds {
     install_vbcable: String,
     install_voicemeeter: String,
     show_diag: String,
-    launch_borderless: String,
-    focus_tip: String,
     open_state: String,
     quit: String,
     seats: Vec<SeatMenuIds>,
@@ -210,12 +206,6 @@ impl TrayApp {
         } else if id == self.menu_ids.show_diag {
             self.show_diagnostics();
             false
-        } else if id == self.menu_ids.launch_borderless {
-            self.launch_borderless_gaming();
-            false
-        } else if id == self.menu_ids.focus_tip {
-            self.show_focus_tip();
-            false
         } else if id == self.menu_ids.open_state {
             self.open_state_dir();
             false
@@ -358,14 +348,6 @@ impl TrayApp {
         let show_diag = MenuItem::new("Show audio diagnostics", true, None);
         ids.show_diag = show_diag.id().0.clone();
         let _ = menu.append(&show_diag);
-
-        let launch_borderless = MenuItem::new("Launch Borderless Gaming", true, None);
-        ids.launch_borderless = launch_borderless.id().0.clone();
-        let _ = menu.append(&launch_borderless);
-
-        let focus_tip = MenuItem::new("Gamepad focus tip", true, None);
-        ids.focus_tip = focus_tip.id().0.clone();
-        let _ = menu.append(&focus_tip);
 
         let open_state = MenuItem::new("Open state folder", true, None);
         ids.open_state = open_state.id().0.clone();
@@ -560,25 +542,6 @@ impl TrayApp {
             None => dirs::home_dir().unwrap_or_default().join(".apollo-fleet"),
         };
         open_in_explorer(&dir);
-    }
-
-    fn launch_borderless_gaming(&self) {
-        let url = format!("steam://rungameid/{}", BORDERLESS_GAMING_STEAM_ID);
-        let _ = webbrowser::open(&url);
-        self.notify(
-            "Borderless Gaming",
-            "Launching via Steam. Add the game window to Favorites — keeps gamepad input alive.",
-        );
-    }
-
-    fn show_focus_tip(&self) {
-        let out = paths::temp_dir().join("apollo-fleet-focus-tip.txt");
-        let body = include_str!("focus_tip.txt");
-        if let Err(e) = std::fs::write(&out, body) {
-            self.notify("Gamepad tip", &format!("could not write tip file: {e}"));
-            return;
-        }
-        let _ = open::that(&out);
     }
 
     fn show_diagnostics(&self) {
