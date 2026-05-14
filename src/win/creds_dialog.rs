@@ -2,7 +2,7 @@
 // InputBox shell-out which was slow, ugly, and showed the password in cleartext.
 
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::{ERROR_SUCCESS, HWND};
 use windows::Win32::Graphics::Gdi::HBITMAP;
 use windows::Win32::Security::Credentials::{
     CredUIPromptForCredentialsW, CREDUI_FLAGS_DO_NOT_PERSIST, CREDUI_FLAGS_GENERIC_CREDENTIALS,
@@ -10,7 +10,6 @@ use windows::Win32::Security::Credentials::{
 };
 
 const BUFLEN: usize = 256;
-const ERROR_SUCCESS: u32 = 0;
 
 pub fn prompt(title: &str, message: &str) -> Option<(String, String)> {
     let title_w: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
