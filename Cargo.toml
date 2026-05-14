@@ -1,6 +1,6 @@
 [package]
 name = "apollo-fleet"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Supervise N isolated Apollo (Sunshine) instances on one Windows host"
 license = "GPL-3.0-or-later"
@@ -40,6 +40,7 @@ features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Graphics_Gdi",
     "Win32_NetworkManagement_IpHelper",
+    "Win32_Security_Credentials",
 ]
 
 [build-dependencies]

@@ -456,13 +456,11 @@ impl TrayApp {
     fn set_master_credentials(&self) {
         let fleet = self.fleet.clone();
         std::thread::spawn(move || {
-            let user = match rfd_input("Apollo Fleet — Set credentials", "Username (applies to all seats):") {
-                Some(u) if !u.is_empty() => u,
-                _ => return,
-            };
-            let pw = match rfd_input("Apollo Fleet — Set credentials", "Password:") {
-                Some(p) if !p.is_empty() => p,
-                _ => return,
+            let Some((user, pw)) = win::creds_dialog::prompt(
+                "Apollo Fleet — Master credentials",
+                "Username and password used by every seat for Apollo's web UI.",
+            ) else {
+                return;
             };
 
             let snapshots = {
@@ -641,30 +639,6 @@ fn open_in_explorer(path: &std::path::Path) {
     let _ = std::process::Command::new("explorer")
         .arg(path)
         .spawn();
-}
-
-// Small text-input dialog. rfd doesn't provide one natively, so we shell out to PowerShell
-// which has VB.InputBox built in. Returns None on cancel.
-fn rfd_input(title: &str, prompt: &str) -> Option<String> {
-    use std::os::windows::process::CommandExt;
-    use std::process::Command;
-    let script = format!(
-        "Add-Type -AssemblyName Microsoft.VisualBasic; \
-         [Microsoft.VisualBasic.Interaction]::InputBox(\"{}\", \"{}\")",
-        prompt.replace('"', "''"),
-        title.replace('"', "''"),
-    );
-    let out = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .creation_flags(0x0800_0000)
-        .output()
-        .ok()?;
-    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if s.is_empty() {
-        None
-    } else {
-        Some(s)
-    }
 }
 
 // `open` crate is small but it's another dep — wrap it locally in case we want to remove.
