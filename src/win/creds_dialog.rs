@@ -1,8 +1,8 @@
 // Native Windows credential prompt. Replaces a previous PowerShell + VBA
 // InputBox shell-out which was slow, ugly, and showed the password in cleartext.
 
-use windows::core::{PCWSTR, PWSTR};
-use windows::Win32::Foundation::{ERROR_SUCCESS, HWND, WIN32_ERROR};
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::HBITMAP;
 use windows::Win32::Security::Credentials::{
     CredUIPromptForCredentialsW, CREDUI_FLAGS_DO_NOT_PERSIST, CREDUI_FLAGS_GENERIC_CREDENTIALS,
@@ -10,6 +10,7 @@ use windows::Win32::Security::Credentials::{
 };
 
 const BUFLEN: usize = 256;
+const ERROR_SUCCESS: u32 = 0;
 
 pub fn prompt(title: &str, message: &str) -> Option<(String, String)> {
     let title_w: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
@@ -36,16 +37,14 @@ pub fn prompt(title: &str, message: &str) -> Option<(String, String)> {
             PCWSTR(target_w.as_ptr()),
             None,
             0,
-            PWSTR(user_buf.as_mut_ptr()),
-            BUFLEN as u32,
-            PWSTR(pass_buf.as_mut_ptr()),
-            BUFLEN as u32,
+            &mut user_buf,
+            &mut pass_buf,
             None,
             CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_DO_NOT_PERSIST,
         )
     };
 
-    if WIN32_ERROR(rc) != ERROR_SUCCESS {
+    if rc != ERROR_SUCCESS {
         return None;
     }
 
