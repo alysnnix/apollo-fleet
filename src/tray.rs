@@ -104,8 +104,11 @@ impl ApplicationHandler<UserEvent> for TrayApp {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
             UserEvent::Refresh => {
-                self.dispatch_pending_menu_events();
+                let needs_rebuild = self.dispatch_pending_menu_events();
                 self.refresh_tray();
+                if needs_rebuild {
+                    self.rebuild_menu();
+                }
                 if self.should_exit() {
                     event_loop.exit();
                 }
@@ -140,53 +143,80 @@ impl TrayApp {
         Ok(())
     }
 
+    /// Periodic refresh: icon + tooltip only. Rebuilding the menu while it's open
+    /// would dismiss any visible submenu (Windows tears down popups when SetMenu fires),
+    /// so menu rebuilds are confined to `rebuild_menu`, which is only called after the
+    /// user performs an action that changed state.
     fn refresh_tray(&mut self) {
         let Some(tray) = self.tray.as_ref() else { return };
         let icon = make_icon(self.is_running());
         let _ = tray.set_icon(Some(icon));
         let title = self.status_label();
         let _ = tray.set_tooltip(Some(format!("Apollo Fleet — {title}")));
+    }
+
+    fn rebuild_menu(&mut self) {
+        let Some(tray) = self.tray.as_ref() else { return };
         let (menu, ids) = self.build_menu();
         self.menu_ids = ids;
         let _ = tray.set_menu(Some(Box::new(menu)));
     }
 
-    fn dispatch_pending_menu_events(&mut self) {
+    fn dispatch_pending_menu_events(&mut self) -> bool {
+        let mut needs_rebuild = false;
         while let Ok(event) = MenuEvent::receiver().try_recv() {
-            self.handle_menu_event(event);
+            if self.handle_menu_event(event) {
+                needs_rebuild = true;
+            }
         }
+        needs_rebuild
     }
 
-    fn handle_menu_event(&mut self, event: MenuEvent) {
+    /// Returns true when the click changed state in a way that requires a menu rebuild
+    /// (Start/Stop/Restart/Quit). Other clicks (open browser, edit file, etc.) don't
+    /// affect the menu's labels.
+    fn handle_menu_event(&mut self, event: MenuEvent) -> bool {
         let id = event.id.0.as_str();
         if id == self.menu_ids.start {
             self.start_fleet();
+            true
         } else if id == self.menu_ids.stop {
             self.stop_fleet();
+            true
         } else if id == self.menu_ids.restart {
             self.restart_fleet();
+            true
         } else if id == self.menu_ids.set_creds {
             self.set_master_credentials();
+            false
         } else if id == self.menu_ids.edit_config {
             open_in_editor(&self.config_path);
+            false
         } else if id == self.menu_ids.install_vbcable {
             let _ = webbrowser::open("https://vb-audio.com/Cable/");
             self.notify("VB-Cable installer", "Install, reboot, restart Apollo Fleet.");
+            false
         } else if id == self.menu_ids.install_voicemeeter {
             let _ = webbrowser::open("https://vb-audio.com/Voicemeeter/potato.htm");
             self.notify("Voicemeeter Potato installer", "Install, reboot, restart Apollo Fleet.");
+            false
         } else if id == self.menu_ids.show_diag {
             self.show_diagnostics();
+            false
         } else if id == self.menu_ids.launch_borderless {
             self.launch_borderless_gaming();
+            false
         } else if id == self.menu_ids.focus_tip {
             self.show_focus_tip();
+            false
         } else if id == self.menu_ids.open_state {
             self.open_state_dir();
+            false
         } else if id == self.menu_ids.quit {
             self.stop_fleet();
             self.tray = None;
             self.last_error.lock().replace("__quit__".into());
+            false
         } else {
             // Seat-scoped items.
             for seat in &self.menu_ids.seats.clone() {
@@ -202,6 +232,7 @@ impl TrayApp {
                     }
                 }
             }
+            false
         }
     }
 
