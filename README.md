@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/apollo-icon.svg" alt="Apollo Fleet" width="128" height="128" />
+</p>
+
 # Apollo Fleet
 
 Supervise N isolated [Apollo / Sunshine](https://github.com/ClassicOldSong/Apollo) instances on a single Windows host so multiple Moonlight clients can connect to the same machine as if it were several hosts.

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -294,7 +295,7 @@ impl TrayApp {
             let placeholder = MenuItem::new("(no seats loaded yet)", false, None);
             let _ = seats_submenu.append(&placeholder);
         } else {
-            for seat in &snapshot {
+            for (i, seat) in snapshot.iter().enumerate() {
                 let suffix = if seat.connected {
                     "— connected"
                 } else if seat.spawned {
@@ -304,7 +305,8 @@ impl TrayApp {
                 } else {
                     "— pending"
                 };
-                let label = format!("{} (port {}) {suffix}", seat.name, seat.port);
+                let role = if i == 0 { " [master]" } else { "" };
+                let label = format!("{}{role} (port {}) {suffix}", seat.name, seat.port);
                 let inner = Submenu::new(label, true);
                 let open_web = MenuItem::new("Open web UI", seat.spawned, None);
                 let move_fg = MenuItem::new(
@@ -586,33 +588,31 @@ impl TrayApp {
     }
 }
 
-fn make_icon(running: bool) -> Icon {
-    // 32x32 RGBA: a filled circle in the chosen color on a transparent background.
-    let size: u32 = 32;
-    let color: [u8; 4] = if running {
-        [0, 180, 90, 255]
-    } else {
-        [180, 60, 60, 255]
-    };
-    let mut rgba = vec![0u8; (size * size * 4) as usize];
-    let cx = (size as f32 - 1.0) / 2.0;
-    let cy = cx;
-    let radius = size as f32 / 2.0 - 1.0;
-    for y in 0..size {
-        for x in 0..size {
-            let dx = x as f32 - cx;
-            let dy = y as f32 - cy;
-            let dist = (dx * dx + dy * dy).sqrt();
-            if dist <= radius {
-                let i = ((y * size + x) * 4) as usize;
-                rgba[i] = color[0];
-                rgba[i + 1] = color[1];
-                rgba[i + 2] = color[2];
-                rgba[i + 3] = color[3];
-            }
-        }
-    }
-    Icon::from_rgba(rgba, size, size).expect("build icon")
+const APOLLO_SVG: &str = include_str!("../resources/apollo-icon.svg");
+
+fn rasterized_icon_rgba() -> &'static (Vec<u8>, u32) {
+    static CACHE: OnceLock<(Vec<u8>, u32)> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let size: u32 = 32;
+        let tree = resvg::usvg::Tree::from_str(APOLLO_SVG, &resvg::usvg::Options::default())
+            .expect("parse apollo-icon.svg");
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(size, size).expect("alloc pixmap");
+        let tree_size = tree.size();
+        let transform = resvg::tiny_skia::Transform::from_scale(
+            size as f32 / tree_size.width(),
+            size as f32 / tree_size.height(),
+        );
+        resvg::render(&tree, transform, &mut pixmap.as_mut());
+        (pixmap.take(), size)
+    })
+}
+
+fn make_icon(_running: bool) -> Icon {
+    // Icon is the apollo logo; status is conveyed in the tooltip. Status-tinting
+    // would distort the brand mark, and the tray icon size (16-32px) is too small
+    // for a meaningful color signal next to artwork.
+    let (rgba, size) = rasterized_icon_rgba();
+    Icon::from_rgba(rgba.clone(), *size, *size).expect("build icon")
 }
 
 fn open_in_editor(path: &std::path::Path) {
