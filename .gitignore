@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.python-version
+
+# PyInstaller
+build/
+dist/
+*.manifest
+
+# Local config (user copies seats.toml.example -> seats.toml and edits it)
+config/seats.toml
+seats.toml
+
+# Logs
+*.log
+logs/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
