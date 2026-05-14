@@ -3,11 +3,11 @@
 
 
 a = Analysis(
-    ['../src/apollo_fleet/tray.py'],
+    ['entry.py'],
     pathex=['../src'],
     binaries=[],
     datas=[('../config/seats.toml.example', '.')],
-    hiddenimports=['tkinter', 'tkinter.simpledialog', 'tkinter.messagebox'],
+    hiddenimports=['tkinter', 'tkinter.simpledialog', 'tkinter.messagebox', 'apollo_fleet', 'apollo_fleet.supervisor', 'apollo_fleet.tray'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
