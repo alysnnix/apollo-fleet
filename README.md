@@ -86,3 +86,13 @@ The first seat in `seats.toml` is the **master**. Its Apollo web UI at `https://
 3. Restarts the affected non-master seats (master stays running).
 
 So one save in the master web UI propagates to the whole fleet. Per-seat customizations stay isolated.
+
+## Documentation
+
+- [USAGE.md](USAGE.md) — full installation, configuration, troubleshooting, FAQ
+- [SECURITY.md](SECURITY.md) — how to report security issues
+- [LICENSE](LICENSE) — GPL-3.0-or-later
+
+## License
+
+Apollo Fleet is released under the [GNU General Public License v3.0 or later](LICENSE). You may use, modify, and redistribute it — including commercially — but any distributed copy or derivative work must also be GPL-licensed and ship with corresponding source. See `LICENSE` for the full text.
