@@ -15,7 +15,7 @@ body:
     id: windows
     attributes:
       label: Windows version
-      description: From `winver` — e.g. "Windows 11 24H2 26100.2894"
+      description: "From winver. Example: Windows 11 24H2 26100.2894"
     validations:
       required: true
 
@@ -54,12 +54,12 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Relevant excerpts from `<state_dir>/<seat>/sunshine.log`, `<state_dir>/<seat>/fleet.log`, or `%TEMP%/apollo-fleet-launcher.log`. Wrap in triple backticks.
+      description: "Relevant excerpts from the seat's sunshine.log, fleet.log, or apollo-fleet-launcher.log in TEMP. Paste raw, no triple backticks needed."
       render: shell
 
   - type: textarea
     id: config
     attributes:
       label: seats.toml (redacted)
-      description: Strip credentials and paths if sensitive.
+      description: "Strip credentials and paths if sensitive."
       render: toml

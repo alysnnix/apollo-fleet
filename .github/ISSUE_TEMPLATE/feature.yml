@@ -7,7 +7,7 @@ body:
     id: problem
     attributes:
       label: What problem does this solve?
-      description: Describe the user pain. Avoid jumping to a specific implementation.
+      description: "Describe the user pain. Avoid jumping to a specific implementation."
     validations:
       required: true
 
@@ -22,7 +22,7 @@ body:
     id: alternatives
     attributes:
       label: Alternatives considered
-      description: Optional. Other approaches you weighed and why you didn't pick them.
+      description: "Optional. Other approaches you weighed and why you did not pick them."
 
   - type: textarea
     id: scope

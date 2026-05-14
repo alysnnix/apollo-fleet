@@ -12,8 +12,8 @@ body:
     id: version
     attributes:
       label: Affected version
-      description: Apollo Fleet version where you observed the issue (see tray menu top, or `--version`).
-      placeholder: v0.4.1
+      description: "Apollo Fleet version where you observed the issue (see tray menu top, or `--version`)."
+      placeholder: v0.5.0
     validations:
       required: true
 
@@ -21,7 +21,7 @@ body:
     id: summary
     attributes:
       label: Summary
-      description: One paragraph: what's the bug and why is it a security issue?
+      description: "One paragraph. What is the bug and why is it a security issue?"
     validations:
       required: true
 
@@ -29,7 +29,7 @@ body:
     id: impact
     attributes:
       label: Impact
-      description: What can an attacker achieve? Local code execution? Credential leak? Persistence? Bypass of a security control?
+      description: "What can an attacker achieve? Local code execution, credential leak, persistence, or bypass of a security control?"
     validations:
       required: true
 
@@ -37,7 +37,7 @@ body:
     id: reproduction
     attributes:
       label: Reproduction steps
-      description: Numbered steps, exact commands, config snippets, screenshots if helpful.
+      description: "Numbered steps, exact commands, config snippets, screenshots if helpful."
     validations:
       required: true
 
@@ -45,20 +45,20 @@ body:
     id: mitigation
     attributes:
       label: Suggested fix or workaround
-      description: Optional. If you already know how to address it.
+      description: "Optional. If you already know how to address it."
 
   - type: textarea
     id: environment
     attributes:
       label: Environment
-      description: Windows build (`winver`), GPU + driver, Apollo version, anything relevant.
+      description: "Windows build (winver), GPU + driver, Apollo version, anything relevant."
 
   - type: checkboxes
     id: confirm
     attributes:
       label: Confirmations
       options:
-        - label: I've read SECURITY.md and understand this report will be public.
+        - label: I have read SECURITY.md and understand this report will be public.
           required: true
         - label: This issue is in Apollo Fleet itself, not in Apollo / Sunshine / Moonlight.
           required: true
