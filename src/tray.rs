@@ -11,6 +11,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy}
 
 use crate::fleet::{self, Fleet};
 use crate::paths;
+use crate::updater::{self, AvailableUpdate};
 use crate::win;
 
 struct TrayApp {
@@ -23,6 +24,7 @@ struct TrayApp {
     proxy: EventLoopProxy<UserEvent>,
     pending_events: Arc<Mutex<Vec<MenuEvent>>>,
     last_theme: Option<win::theme::Theme>,
+    update_available: Arc<Mutex<Option<AvailableUpdate>>>,
 }
 
 #[derive(Default, Clone)]
@@ -36,6 +38,7 @@ struct MenuIds {
     install_voicemeeter: String,
     show_diag: String,
     open_state: String,
+    install_update: String,
     quit: String,
     seats: Vec<SeatMenuIds>,
 }
@@ -77,6 +80,22 @@ pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
         }
     });
 
+    let update_available: Arc<Mutex<Option<AvailableUpdate>>> = Arc::new(Mutex::new(None));
+
+    // Check GitHub for a newer release on startup. Never auto-applies; only sets
+    // the flag so the tray header surfaces an "Install update" item.
+    let update_state_check = update_available.clone();
+    let update_proxy = proxy.clone();
+    std::thread::spawn(move || match updater::check_latest() {
+        Ok(Some(update)) => {
+            log::info!("[update] new version available: v{}", update.version);
+            *update_state_check.lock() = Some(update);
+            let _ = update_proxy.send_event(UserEvent::Refresh);
+        }
+        Ok(None) => log::info!("[update] up to date"),
+        Err(e) => log::warn!("[update] check failed: {e:#}"),
+    });
+
     let mut app = TrayApp {
         config_path,
         skip_sink_check,
@@ -87,6 +106,7 @@ pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
         proxy,
         pending_events,
         last_theme: None,
+        update_available,
     };
 
     // Eager-start the fleet so the user doesn't have to click Start manually.
@@ -220,6 +240,9 @@ impl TrayApp {
             self.tray = None;
             self.last_error.lock().replace("__quit__".into());
             false
+        } else if id == self.menu_ids.install_update {
+            self.install_update();
+            false
         } else {
             // Seat-scoped items.
             for seat in &self.menu_ids.seats.clone() {
@@ -280,6 +303,23 @@ impl TrayApp {
             None,
         );
         let _ = menu.append(&header);
+
+        if let Some(update) = self.update_available.lock().as_ref() {
+            let banner = MenuItem::new(
+                format!("Update available: v{}", update.version),
+                false,
+                None,
+            );
+            let _ = menu.append(&banner);
+            let install = MenuItem::new(
+                format!("Install update v{}", update.version),
+                true,
+                None,
+            );
+            ids.install_update = install.id().0.clone();
+            let _ = menu.append(&install);
+        }
+
         let _ = menu.append(&PredefinedMenuItem::separator());
 
         let status = MenuItem::new(format!("Status: {}", self.status_label()), false, None);
@@ -419,6 +459,39 @@ impl TrayApp {
         self.stop_fleet();
         self.fleet.lock().take();
         self.start_fleet();
+    }
+
+    fn install_update(&self) {
+        let update_state = self.update_available.clone();
+        let fleet = self.fleet.clone();
+        std::thread::spawn(move || {
+            let Some(update) = update_state.lock().clone() else {
+                return;
+            };
+            // Download + verify happen BEFORE we touch the running fleet so a
+            // network failure doesn't take the user's seats offline.
+            let staged = match updater::download_and_stage(&update) {
+                Ok(p) => p,
+                Err(e) => {
+                    win::msgbox::error(
+                        "Apollo Fleet update",
+                        &format!("Could not download v{}:\n{e:#}", update.version),
+                    );
+                    return;
+                }
+            };
+            if let Some(f) = fleet.lock().as_mut() {
+                f.stop();
+            }
+            if let Err(e) = updater::launch_apply(&staged) {
+                win::msgbox::error(
+                    "Apollo Fleet update",
+                    &format!("Could not stage updater:\n{e:#}"),
+                );
+                return;
+            }
+            std::process::exit(0);
+        });
     }
 
     fn seat_port(&self, name: &str) -> Option<u16> {

@@ -11,6 +11,7 @@ mod seat;
 mod shared_state;
 mod singleton;
 mod tray;
+mod updater;
 mod win;
 
 use std::path::PathBuf;
