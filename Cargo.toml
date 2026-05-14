@@ -40,6 +40,9 @@ features = [
     "Win32_NetworkManagement_IpHelper",
 ]
 
+[build-dependencies]
+embed-manifest = "1"
+
 [profile.release]
 opt-level = "z"
 lto = true
