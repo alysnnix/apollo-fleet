@@ -71,5 +71,14 @@ Apollo limits 4 simultaneous instances. Each seat should capture from a distinct
 - Restarts a seat if Apollo exits unexpectedly. After 3 exits in 30 seconds the seat is marked dead (circuit breaker).
 - Suppresses Apollo's own tray icon by locating its zserge/tray hidden window via `EnumWindows`/`GetClassNameW` and calling `Shell_NotifyIconW(NIM_DELETE)`.
 - Detects active clients via `GetTcpTable2` (no shelling to `netstat`).
-- Detects audio endpoints via `IMMDeviceEnumerator` (no shelling to PowerShell).
 - When a client connects, identifies the newly-created virtual display (set difference vs. baseline) and moves the host's foreground window onto it.
+
+## Master web UI
+
+The first seat in `seats.toml` is the **master**. Its Apollo web UI at `https://localhost:{port+1}/` is the source of truth for shared settings (encoder, bitrate, fps, etc.). When you save changes there, Apollo Fleet:
+
+1. Detects the change to the master's `sunshine.conf` via a file watcher.
+2. Rewrites every non-master seat's `sunshine.conf`: master's keys, except per-seat ones (`port`, `sunshine_name`, `audio_sink`, paths, gamepad-only flags), which are preserved from the seat's existing conf.
+3. Restarts the affected non-master seats (master stays running).
+
+So one save in the master web UI propagates to the whole fleet. Per-seat customizations stay isolated.

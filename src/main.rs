@@ -6,6 +6,7 @@ mod config;
 mod fleet;
 mod launcher;
 mod paths;
+mod propagate;
 mod seat;
 mod shared_state;
 mod singleton;

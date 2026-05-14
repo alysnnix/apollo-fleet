@@ -7,6 +7,7 @@ use anyhow::Result;
 use parking_lot::Mutex;
 
 use crate::config;
+use crate::propagate::{self, PropagatorHandle, SeatRef};
 use crate::seat::Seat;
 use crate::shared_state::{self, SeatMonitor, SharedState};
 use crate::win;
@@ -42,6 +43,7 @@ pub struct Fleet {
     inner: Arc<Mutex<Inner>>,
     handle: Option<std::thread::JoinHandle<()>>,
     stop: Arc<std::sync::atomic::AtomicBool>,
+    propagator: Option<PropagatorHandle>,
 }
 
 struct Inner {
@@ -74,6 +76,7 @@ impl Fleet {
             })),
             handle: None,
             stop: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            propagator: None,
         }
     }
 
@@ -127,7 +130,7 @@ impl Fleet {
             return;
         }
         self.stop.store(false, std::sync::atomic::Ordering::Relaxed);
-        {
+        let (master_ref, other_refs) = {
             let mut inner = self.inner.lock();
             let baseline: HashSet<String> =
                 win::monitor::list_active().into_iter().map(|m| m.device).collect();
@@ -139,13 +142,39 @@ impl Fleet {
             if !inner.seats.is_empty() {
                 spawn_index(&mut inner, 0);
             }
-        }
+            let master = inner.seats.first().map(|s| SeatRef {
+                name: s.cfg.name.clone(),
+                config_path: s.config_file.clone(),
+            });
+            let others: Vec<SeatRef> = inner
+                .seats
+                .iter()
+                .skip(1)
+                .map(|s| SeatRef {
+                    name: s.cfg.name.clone(),
+                    config_path: s.config_file.clone(),
+                })
+                .collect();
+            (master, others)
+        };
         let inner = self.inner.clone();
         let stop = self.stop.clone();
         self.handle = Some(std::thread::spawn(move || supervise_loop(inner, stop)));
+
+        if let Some(master) = master_ref {
+            if !other_refs.is_empty() {
+                let restart_target = self.inner.clone();
+                self.propagator = Some(propagate::spawn(master, other_refs, move |seat_name| {
+                    restart_seat(&restart_target, seat_name);
+                }));
+            }
+        }
     }
 
     pub fn stop(&mut self) {
+        if let Some(p) = self.propagator.take() {
+            p.stop();
+        }
         self.stop.store(true, std::sync::atomic::Ordering::Relaxed);
         if let Some(h) = self.handle.take() {
             let _ = h.join();
@@ -368,6 +397,29 @@ fn supervise_loop(inner: Arc<Mutex<Inner>>, stop: Arc<std::sync::atomic::AtomicB
         }
 
         std::thread::sleep(POLL_INTERVAL);
+    }
+}
+
+/// Stop and immediately re-start a single seat. Holds the inner lock for the duration so
+/// the supervisor thread can't fire its restart-on-crash logic while the seat is briefly
+/// down.
+fn restart_seat(inner: &Arc<Mutex<Inner>>, seat_name: &str) {
+    let mut g = inner.lock();
+    let Some(idx) = g.seats.iter().position(|s| s.cfg.name == seat_name) else {
+        return;
+    };
+    if g.dead.contains(seat_name) {
+        return;
+    }
+    g.seats[idx].stop();
+    // Clear failure history so this intentional restart doesn't push the seat over
+    // the circuit breaker threshold.
+    g.failures.remove(seat_name);
+    g.last_restart.remove(seat_name);
+    if let Err(e) = g.seats[idx].start() {
+        log::error!("[propagate] restart of '{seat_name}' failed: {e:#}");
+    } else {
+        log::info!("[propagate] restarted '{seat_name}' after config propagation");
     }
 }
 
