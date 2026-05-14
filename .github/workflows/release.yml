@@ -20,6 +20,18 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Verify Cargo.toml version matches tag
+        shell: pwsh
+        env:
+          GIT_REF: ${{ github.ref_name }}
+        run: |
+          $tag = $env:GIT_REF -replace '^v', ''
+          $cargo = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          if ($tag -ne $cargo) {
+            Write-Error "Tag $env:GIT_REF (-> $tag) does not match Cargo.toml version $cargo"
+            exit 1
+          }
+
       - name: Build release
         run: cargo build --release --target x86_64-pc-windows-msvc
 
