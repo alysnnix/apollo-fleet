@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::OnceLock;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -23,6 +22,7 @@ struct TrayApp {
     menu_ids: MenuIds,
     proxy: EventLoopProxy<UserEvent>,
     pending_events: Arc<Mutex<Vec<MenuEvent>>>,
+    last_theme: Option<win::theme::Theme>,
 }
 
 #[derive(Default, Clone)]
@@ -86,6 +86,7 @@ pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
         menu_ids: MenuIds::default(),
         proxy,
         pending_events,
+        last_theme: None,
     };
 
     // Eager-start the fleet so the user doesn't have to click Start manually.
@@ -134,7 +135,9 @@ impl TrayApp {
     fn build_tray(&mut self) -> Result<()> {
         let (menu, ids) = self.build_menu();
         self.menu_ids = ids;
-        let icon = make_icon(self.is_running());
+        let theme = win::theme::system_theme();
+        let icon = icon_for(theme);
+        self.last_theme = Some(theme);
         let title = self.status_label();
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
@@ -146,14 +149,16 @@ impl TrayApp {
         Ok(())
     }
 
-    /// Periodic refresh: icon + tooltip only. Rebuilding the menu while it's open
-    /// would dismiss any visible submenu (Windows tears down popups when SetMenu fires),
-    /// so menu rebuilds are confined to `rebuild_menu`, which is only called after the
-    /// user performs an action that changed state.
+    /// Periodic refresh: tooltip every tick, icon only when the system theme changes.
+    /// Rebuilding the menu while it's open would dismiss any visible submenu (Windows
+    /// tears down popups when SetMenu fires), so menu rebuilds live in `rebuild_menu`.
     fn refresh_tray(&mut self) {
         let Some(tray) = self.tray.as_ref() else { return };
-        let icon = make_icon(self.is_running());
-        let _ = tray.set_icon(Some(icon));
+        let theme = win::theme::system_theme();
+        if self.last_theme != Some(theme) {
+            let _ = tray.set_icon(Some(icon_for(theme)));
+            self.last_theme = Some(theme);
+        }
         let title = self.status_label();
         let _ = tray.set_tooltip(Some(format!("Apollo Fleet — {title}")));
     }
@@ -596,32 +601,34 @@ impl TrayApp {
     }
 }
 
-const APOLLO_SVG: &str = include_str!("../resources/apollo-icon.svg");
+const APOLLO_MONO_SVG: &str = include_str!("../resources/apollo-icon-mono.svg");
 
-fn rasterized_icon_rgba() -> &'static (Vec<u8>, u32) {
-    static CACHE: OnceLock<(Vec<u8>, u32)> = OnceLock::new();
-    CACHE.get_or_init(|| {
-        let size: u32 = 32;
-        let tree = resvg::usvg::Tree::from_str(APOLLO_SVG, &resvg::usvg::Options::default())
-            .expect("parse apollo-icon.svg");
-        let mut pixmap = resvg::tiny_skia::Pixmap::new(size, size).expect("alloc pixmap");
-        let tree_size = tree.size();
-        let transform = resvg::tiny_skia::Transform::from_scale(
-            size as f32 / tree_size.width(),
-            size as f32 / tree_size.height(),
-        );
-        resvg::render(&tree, transform, &mut pixmap.as_mut());
-        (pixmap.take(), size)
-    })
+fn rasterize_mono(fill_hex: &str) -> (Vec<u8>, u32) {
+    let size: u32 = 32;
+    let svg = APOLLO_MONO_SVG.replace("{COLOR}", fill_hex);
+    let tree = resvg::usvg::Tree::from_str(&svg, &resvg::usvg::Options::default())
+        .expect("parse apollo-icon-mono.svg");
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(size, size).expect("alloc pixmap");
+    let tree_size = tree.size();
+    let transform = resvg::tiny_skia::Transform::from_scale(
+        size as f32 / tree_size.width(),
+        size as f32 / tree_size.height(),
+    );
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+    (pixmap.take(), size)
 }
 
-fn make_icon(_running: bool) -> Icon {
-    // Icon is the apollo logo; status is conveyed in the tooltip. Status-tinting
-    // would distort the brand mark, and the tray icon size (16-32px) is too small
-    // for a meaningful color signal next to artwork.
-    let (rgba, size) = rasterized_icon_rgba();
-    Icon::from_rgba(rgba.clone(), *size, *size).expect("build icon")
+fn icon_for(theme: win::theme::Theme) -> Icon {
+    // Light system theme has a bright taskbar, so the icon should be dark for contrast.
+    // Dark theme is the inverse. Apollo brand yellow is reserved for the README/app icon.
+    let fill = match theme {
+        win::theme::Theme::Light => "#1a1a1a",
+        win::theme::Theme::Dark => "#f5f5f5",
+    };
+    let (rgba, size) = rasterize_mono(fill);
+    Icon::from_rgba(rgba, size, size).expect("build icon")
 }
+
 
 fn open_in_editor(path: &std::path::Path) {
     let _ = open::that(path);
