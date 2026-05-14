@@ -23,6 +23,7 @@ struct TrayApp {
     tray: Option<TrayIcon>,
     menu_ids: MenuIds,
     proxy: EventLoopProxy<UserEvent>,
+    pending_events: Arc<Mutex<Vec<MenuEvent>>>,
 }
 
 #[derive(Default, Clone)]
@@ -59,10 +60,14 @@ pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
     let event_loop: EventLoop<UserEvent> = EventLoop::with_user_event().build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
+    let pending_events: Arc<Mutex<Vec<MenuEvent>>> = Arc::new(Mutex::new(Vec::new()));
 
-    // Forward menu clicks into the winit loop.
+    // Capture menu clicks: push into our own queue AND wake winit. Setting a custom
+    // handler bypasses tray-icon's internal channel, so we must store events ourselves.
     let menu_proxy = proxy.clone();
-    MenuEvent::set_event_handler(Some(move |_event: MenuEvent| {
+    let menu_queue = pending_events.clone();
+    MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
+        menu_queue.lock().push(event);
         let _ = menu_proxy.send_event(UserEvent::Refresh);
     }));
 
@@ -83,6 +88,7 @@ pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
         tray: None,
         menu_ids: MenuIds::default(),
         proxy,
+        pending_events,
     };
 
     // Eager-start the fleet so the user doesn't have to click Start manually.
@@ -163,8 +169,9 @@ impl TrayApp {
     }
 
     fn dispatch_pending_menu_events(&mut self) -> bool {
+        let events: Vec<MenuEvent> = self.pending_events.lock().drain(..).collect();
         let mut needs_rebuild = false;
-        while let Ok(event) = MenuEvent::receiver().try_recv() {
+        for event in events {
             if self.handle_menu_event(event) {
                 needs_rebuild = true;
             }
