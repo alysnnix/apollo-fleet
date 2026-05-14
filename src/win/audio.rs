@@ -1,55 +1,29 @@
-use anyhow::{Context, Result};
-use windows::core::PCWSTR;
-use windows::Win32::Devices::FunctionDiscovery::PKEY_Device_FriendlyName;
-use windows::Win32::Media::Audio::{
-    eRender, IMMDeviceEnumerator, MMDeviceEnumerator, DEVICE_STATE_ACTIVE,
-};
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_ALL, STGM_READ};
+use std::os::windows::process::CommandExt;
+use std::process::Command;
+use std::time::Duration;
 
-use super::ensure_com_init;
+use anyhow::Result;
 
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Active render endpoint friendly names. Shells out to PowerShell — the COM path
+/// (IMMDeviceEnumerator + PROPVARIANT extraction) is brittle across windows-rs
+/// versions and this list is queried rarely, so the subprocess cost is irrelevant.
 pub fn list_audio_endpoints() -> Result<Vec<String>> {
-    ensure_com_init();
-    unsafe {
-        let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
-            .context("CoCreateInstance(MMDeviceEnumerator)")?;
-        let collection = enumerator
-            .EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)
-            .context("EnumAudioEndpoints")?;
-        let count = collection.GetCount().context("GetCount")?;
-        let mut out = Vec::with_capacity(count as usize);
-        for i in 0..count {
-            let device = collection.Item(i).context("Item")?;
-            let props = device.OpenPropertyStore(STGM_READ).context("OpenPropertyStore")?;
-            let value = props.GetValue(&PKEY_Device_FriendlyName).context("GetValue")?;
-            let name = prop_to_string(&value);
-            if !name.is_empty() {
-                out.push(name);
-            }
-        }
-        Ok(out)
-    }
-}
-
-unsafe fn prop_to_string(value: &windows::Win32::System::Com::StructuredStorage::PROPVARIANT) -> String {
-    use windows::Win32::System::Variant::{VT_BSTR, VT_LPWSTR};
-    let vt = value.Anonymous.Anonymous.vt;
-    if vt == VT_LPWSTR {
-        let ptr = value.Anonymous.Anonymous.Anonymous.pwszVal;
-        return pcwstr_to_string(ptr);
-    }
-    if vt == VT_BSTR {
-        let ptr = value.Anonymous.Anonymous.Anonymous.bstrVal.0;
-        return pcwstr_to_string(PCWSTR(ptr));
-    }
-    String::new()
-}
-
-unsafe fn pcwstr_to_string(s: PCWSTR) -> String {
-    if s.is_null() {
-        return String::new();
-    }
-    s.to_string().unwrap_or_default()
+    let script =
+        "Get-PnpDevice -Class AudioEndpoint -Status OK -ErrorAction SilentlyContinue \
+         | ForEach-Object { $_.FriendlyName }";
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()?;
+    let _ = Duration::from_secs(10); // keep this expressive: PS is the slow path
+    let text = String::from_utf8_lossy(&output.stdout);
+    Ok(text
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect())
 }
 
 pub fn validate_sinks(seats: &[crate::config::SeatCfg]) -> Vec<String> {

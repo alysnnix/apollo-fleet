@@ -174,7 +174,8 @@ fn send_ctrl_break(child: &Child) -> std::io::Result<()> {
     use windows::Win32::System::Console::{GenerateConsoleCtrlEvent, CTRL_BREAK_EVENT};
     unsafe {
         let pid = child.id();
-        GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid).ok().map_err(std::io::Error::other)
+        GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid)
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 

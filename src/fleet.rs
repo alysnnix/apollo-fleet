@@ -303,12 +303,16 @@ fn supervise_loop(inner: Arc<Mutex<Inner>>, stop: Arc<std::sync::atomic::AtomicB
         // Sample raw connection state, detect transitions, lazy spawn.
         let transitions: Vec<(String, bool, Option<u16>)> = {
             let mut g = inner.lock();
-            let alive_idxs: Vec<usize> = g
-                .spawned_idx
-                .iter()
-                .filter(|&&i| g.seats[i].alive() && !g.dead.contains(&g.seats[i].cfg.name))
-                .copied()
-                .collect();
+            let alive_idxs: Vec<usize> = {
+                let spawned = g.spawned_idx.clone();
+                spawned
+                    .into_iter()
+                    .filter(|&i| {
+                        let name = g.seats[i].cfg.name.clone();
+                        g.seats[i].alive() && !g.dead.contains(&name)
+                    })
+                    .collect()
+            };
 
             for &idx in &alive_idxs {
                 let port = g.seats[idx].cfg.port;

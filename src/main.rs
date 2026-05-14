@@ -106,7 +106,7 @@ fn run(cli: Cli) -> Result<u8> {
     if cli.dry_run {
         let fleet = fleet::build(&config_path, true)?;
         for seat in fleet.seats() {
-            println!("[dry-run] {} -> {}", seat.cfg.name, seat.config_file.display());
+            println!("[dry-run] {} -> {}", seat.name, seat.config_file.display());
         }
         return Ok(0);
     }
