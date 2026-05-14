@@ -1,19 +1,9 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.venv*/
-venv/
-env/
-.python-version
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock.bak
 
-# PyInstaller
-build/
-dist/
-*.manifest
-
-# Local config (user copies seats.toml.example -> seats.toml and edits it)
+# Local config (user copies seats.toml.example -> seats.toml and edits)
 config/seats.toml
 seats.toml
 

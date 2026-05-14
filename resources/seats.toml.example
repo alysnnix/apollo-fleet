@@ -1,0 +1,47 @@
+# Apollo Fleet config
+#
+# Each [[seat]] = one Apollo template. Apollo Fleet starts the FIRST seat
+# eagerly and spawns the NEXT seat only when all currently-spawned seats have
+# an active client. So your fleet always has exactly one idle seat ready for
+# the next device to connect, and never spawns more than needed.
+#
+# Apollo limits 4 simultaneous instances. Define up to 4 seats here.
+#
+# Audio sinks: each seat captures audio from a distinct virtual sink so
+# clients don't share audio. If the configured sink doesn't exist on this
+# host, Apollo falls back to the system default (a warning is logged and the
+# fleet still starts). Install:
+#   - Voicemeeter Potato (free, gives 3 sinks): https://vb-audio.com/Voicemeeter/potato.htm
+#   - VB-Cable (free, gives 1 sink):            https://vb-audio.com/Cable/
+#
+# Steam Streaming Speakers is bundled with Apollo and is normally present.
+#
+# gamepad_only = true blocks keyboard/mouse from the streamed client so it
+# can't steal focus from the host's physical keyboard/mouse.
+
+apollo_path = 'C:\Program Files\Apollo\sunshine.exe'
+state_dir   = 'C:\Users\aly\.apollo-fleet'
+
+[[seat]]
+name         = "desk-1"
+port         = 47989
+audio_sink   = "Steam Streaming Speakers"
+gamepad_only = true
+
+[[seat]]
+name         = "desk-2"
+port         = 48029
+audio_sink   = "Voicemeeter Input"
+gamepad_only = true
+
+[[seat]]
+name         = "desk-3"
+port         = 48069
+audio_sink   = "Voicemeeter AUX Input"
+gamepad_only = true
+
+[[seat]]
+name         = "desk-4"
+port         = 48109
+audio_sink   = "Voicemeeter VAIO3 Input"
+gamepad_only = true

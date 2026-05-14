@@ -1,0 +1,56 @@
+Apollo Fleet — keeping gamepad input alive while host is in use
+============================================================
+
+WHY THIS HAPPENS
+----------------
+Apollo always forwards gamepad events to a virtual XInput device.
+That part works regardless of focus. The problem is that most
+Windows games STOP processing input when their own window loses
+focus. So when you click somewhere on the host, the game on the
+virtual display sees 'I lost focus' and ignores incoming events.
+
+There is no purely-software fix that works for EVERY game without
+injecting code into the game's process (which anti-cheat systems
+treat as cheating). The options below cover ~95% of real cases.
+
+FIX 1 — In-game setting (works for most modern singleplayer games)
+------------------------------------------------------------------
+Look in the game's options for one of these:
+  - 'Pause when window not focused' / 'Pause on focus loss'
+  - 'Background mode' / 'Allow input in background'
+  - 'Run in background'
+Disable it.
+
+Confirmed examples:
+  - Baldur's Gate 3 -> Settings > Gameplay
+  - Cyberpunk 2077  -> Settings > Gameplay
+  - The Witcher 3   -> Options > Gameplay > Advanced
+  - Skyrim/Fallout  -> ENB or .ini tweak (bAlwaysActive=1)
+  - Diablo 4        -> Options > Gameplay
+
+FIX 2 — Borderless Gaming (works for games without that setting)
+---------------------------------------------------------------
+Tool that intercepts WM_KILLFOCUS so the game thinks it always
+has focus. Sold on Steam for a small fee:
+  https://store.steampowered.com/app/388080/
+Once installed in your Steam library, use the tray menu:
+  Apollo Fleet > 'Launch Borderless Gaming'
+Add your game to its Favorites list once; from then on it keeps
+your inputs alive automatically.
+
+FIX 3 — Exclusive fullscreen on the virtual display
+---------------------------------------------------
+Some games behave better in exclusive (not borderless) fullscreen
+because they capture input at a lower level. Worth trying if FIX 1
+and FIX 2 don't help for a specific game.
+
+FIX 4 — True multiseat (Aster, paid)
+------------------------------------
+Aster Multiseat creates real separate Windows sessions, each with
+its own input queue. Cleanest possible solution but ~$70 license.
+
+WHAT WON'T WORK
+---------------
+Multiplayer competitive games (CS2, Valorant, Fortnite) actively
+block focus-stealing tricks via anti-cheat — there is no safe
+way to make those work in background-streamed mode.

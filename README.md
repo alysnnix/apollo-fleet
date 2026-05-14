@@ -4,48 +4,58 @@ Supervise N isolated [Apollo / Sunshine](https://github.com/ClassicOldSong/Apoll
 
 Each "seat" advertises itself in Moonlight with its own mDNS name, port range, state directory, and audio sink. Pair each Moonlight client to the seat it should use.
 
+Written in Rust (single static `.exe`, ~3 MB) using the official `windows-rs` bindings, `tray-icon` from the Tauri ecosystem, and `winit` for the event loop. No Python, no PyInstaller bundle, no AV false-positives.
+
 ## Layout
 
 ```
 apollo-fleet/
-├── src/apollo_fleet/
-│   ├── supervisor.py    # fleet supervisor (process lifecycle, restart, circuit breaker)
-│   └── tray.py          # pystray icon for the bundled Windows app
+├── src/
+│   ├── main.rs          # CLI dispatch (tray, --launch, --list-sinks, --dry-run)
+│   ├── config.rs        # TOML loading + validation
+│   ├── seat.rs          # generates sunshine.conf + apps.json, spawn/stop
+│   ├── fleet.rs         # supervisor loop, lazy spawn, circuit breaker
+│   ├── launcher.rs      # --launch mode (called by Apollo's apps.json)
+│   ├── tray.rs          # tray-icon menu + actions
+│   ├── shared_state.rs  # JSON state in %APPDATA%/apollo-fleet
+│   ├── singleton.rs     # bind 127.0.0.1:47999 to enforce single instance
+│   ├── paths.rs         # %APPDATA% / %TEMP% helpers
+│   └── win/             # Win32 calls (windows-rs)
+├── resources/
+│   └── seats.toml.example
+├── config/
+│   └── seats.toml.example   # mirrored for hand-editing without rebuilding
 ├── scripts/
 │   └── check-audio-sinks.ps1
-├── packaging/
-│   └── ApolloFleet.spec # PyInstaller spec
-├── config/
-│   └── seats.toml.example
-├── pyproject.toml
-└── requirements.txt
+└── .github/workflows/release.yml
 ```
 
-## Quick start (dev)
+## Quick start
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e .
-
-copy config\seats.toml.example config\seats.toml
-# edit config\seats.toml: apollo_path, state_dir, and one [[seat]] per Moonlight client
-
-python -m apollo_fleet.supervisor --config config\seats.toml     # CLI supervisor
-python -m apollo_fleet.tray       --config config\seats.toml     # tray app
+cargo build --release
+.\target\release\apollo-fleet.exe                       # tray mode
+.\target\release\apollo-fleet.exe --list-sinks          # audio endpoints
+.\target\release\apollo-fleet.exe --supervisor          # CLI supervisor (no tray)
+.\target\release\apollo-fleet.exe --dry-run             # generate per-seat configs only
 ```
+
+On first run the binary copies `seats.toml.example` to `%APPDATA%\apollo-fleet\seats.toml`. Edit that file:
+
+- `apollo_path`: full path to `sunshine.exe`
+- `state_dir`: where per-seat state goes (keep it on a fast disk)
+- One `[[seat]]` per Moonlight client, each with a unique `port` (40+ apart) and ideally a distinct `audio_sink`
 
 Run as Administrator so Apollo can create virtual displays.
 
-## Build the Windows executable
+## Releases
+
+CI builds a Windows binary on every `v*` tag and attaches `ApolloFleet.exe` to the resulting GitHub release. Local cut:
 
 ```powershell
-pip install pyinstaller
-pyinstaller packaging\ApolloFleet.spec
-# output: dist\ApolloFleet.exe
+git tag -a v0.2.0 -m "v0.2.0"
+git push origin v0.2.0
 ```
-
-On first run, the exe copies `seats.toml.example` to `%APPDATA%\apollo-fleet\seats.toml`.
 
 ## Audio sinks
 
@@ -55,22 +65,11 @@ Apollo limits 4 simultaneous instances. Each seat should capture from a distinct
 - [VB-Cable](https://vb-audio.com/Cable/) — 1 extra sink (free)
 - [Voicemeeter Potato](https://vb-audio.com/Voicemeeter/potato.htm) — 3 extra sinks (free)
 
-List the active playback endpoints on the host:
-
-```powershell
-scripts\check-audio-sinks.ps1
-# or:
-python -m apollo_fleet.supervisor --list-sinks
-```
-
 ## How it works
 
-- Starts the first seat eagerly. Spawns the next seat only when every currently-spawned seat has an active client. The fleet always has exactly one idle seat ready for the next device, and never more.
-- Restarts a seat if Apollo exits unexpectedly. After `MAX_FAILURES` exits in `FAILURE_WINDOW_S` seconds the seat is marked dead (circuit breaker).
-- Suppresses Apollo's own tray icon by locating the zserge/tray hidden window and removing the icon via `Shell_NotifyIcon(NIM_DELETE)`.
-
-## Requirements
-
-- Windows 10/11
-- Python 3.11+
-- Apollo / Sunshine installed (default path: `C:\Program Files\Apollo\sunshine.exe`)
+- Starts the first seat eagerly. Spawns the next seat only when every currently-spawned seat has an active client (debounced). The fleet always has exactly one idle seat ready, never more.
+- Restarts a seat if Apollo exits unexpectedly. After 3 exits in 30 seconds the seat is marked dead (circuit breaker).
+- Suppresses Apollo's own tray icon by locating its zserge/tray hidden window via `EnumWindows`/`GetClassNameW` and calling `Shell_NotifyIconW(NIM_DELETE)`.
+- Detects active clients via `GetTcpTable2` (no shelling to `netstat`).
+- Detects audio endpoints via `IMMDeviceEnumerator` (no shelling to PowerShell).
+- When a client connects, identifies the newly-created virtual display (set difference vs. baseline) and moves the host's foreground window onto it.

@@ -14,22 +14,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          python-version: '3.12'
-          cache: pip
+          targets: x86_64-pc-windows-msvc
 
-      - name: Install dependencies
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Rename binary
+        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install pyinstaller
-
-      - name: Build executable
-        run: pyinstaller packaging/ApolloFleet.spec
+          Copy-Item target/x86_64-pc-windows-msvc/release/apollo-fleet.exe ApolloFleet.exe
 
       - name: Create release with exe
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/ApolloFleet.exe
+          files: ApolloFleet.exe
           generate_release_notes: true
