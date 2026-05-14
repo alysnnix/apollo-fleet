@@ -5,7 +5,14 @@
 # an active client. So your fleet always has exactly one idle seat ready for
 # the next device to connect, and never spawns more than needed.
 #
-# Apollo limits 4 simultaneous instances. Define up to 4 seats here.
+# The real limit on simultaneous active streams comes from your GPU's video
+# encoder, not Apollo. Typical caps:
+#   - NVIDIA GeForce (consumer):  3 concurrent NVENC sessions on older drivers;
+#                                 up to 8 on recent ones (R555+).
+#   - NVIDIA RTX Pro / Quadro:    no hard limit (use as many as VRAM allows).
+#   - AMD (AMF) / Intel (QSV):    typically 2-4 concurrent sessions.
+# Define as many seats as you have encoder slots. Idle seats don't consume
+# encoder sessions — only seats with a connected Moonlight client do.
 #
 # Audio sinks: each seat captures audio from a distinct virtual sink so
 # clients don't share audio. If the configured sink doesn't exist on this

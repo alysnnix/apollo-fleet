@@ -236,6 +236,26 @@ Rust binaries from cold caches occasionally trip generic heuristics. If your AV 
 
 Make sure you're on v0.2.3 or newer. Earlier builds had a bug where `set_event_handler` swallowed clicks.
 
+### `Video encoder has a maximum capacity of simultaneous encoding streams` in Apollo's log
+
+This is a **GPU/driver** limit, not an Apollo Fleet or Apollo limit. The video encoder on your GPU only allows N simultaneous hardware-encoded streams:
+
+| GPU                          | Typical concurrent encode sessions                        |
+|------------------------------|-----------------------------------------------------------|
+| NVIDIA GeForce (older driver, pre-R555) | 3                                              |
+| NVIDIA GeForce (driver R555+, 2024 onward) | 8                                           |
+| NVIDIA RTX Pro / Quadro      | unlimited (bounded by VRAM)                               |
+| AMD Radeon (AMF)             | 2-4                                                       |
+| Intel Arc / iGPU (QSV)       | 2-4                                                       |
+
+Idle seats don't consume encoder slots — only seats with a Moonlight client actively streaming do. So defining 6 seats on a 3-session GPU works fine until a 4th client tries to connect; the lazy-spawn logic doesn't help you past the hardware cap.
+
+Options to raise the cap:
+- **Update your NVIDIA driver** to R555 or later.
+- **Switch to a software encoder** by editing the master seat's web UI → set encoder to `Software` (`x264` / `libx264`). Costs CPU instead of GPU.
+- **NVENC patch** (community, modifies the driver to remove the consumer cap). Unofficial; not endorsed.
+- **Cut the seat count** to match your GPU's limit.
+
 ### Master config changes don't propagate
 
 - Confirm the seat you're editing is **seat[0]** in `seats.toml`. Only that one acts as master.
