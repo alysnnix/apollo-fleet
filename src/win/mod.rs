@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod creds_dialog;
 pub mod monitor;
+pub mod msgbox;
 pub mod process;
 pub mod registry;
 pub mod tcp;

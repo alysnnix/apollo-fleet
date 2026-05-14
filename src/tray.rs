@@ -202,11 +202,11 @@ impl TrayApp {
             open_in_editor(&self.config_path);
             false
         } else if id == self.menu_ids.install_vbcable {
-            let _ = webbrowser::open("https://vb-audio.com/Cable/");
+            let _ = open::that("https://vb-audio.com/Cable/");
             self.notify("VB-Cable installer", "Install, reboot, restart Apollo Fleet.");
             false
         } else if id == self.menu_ids.install_voicemeeter {
-            let _ = webbrowser::open("https://vb-audio.com/Voicemeeter/potato.htm");
+            let _ = open::that("https://vb-audio.com/Voicemeeter/potato.htm");
             self.notify("Voicemeeter Potato installer", "Install, reboot, restart Apollo Fleet.");
             false
         } else if id == self.menu_ids.show_diag {
@@ -225,7 +225,7 @@ impl TrayApp {
             for seat in &self.menu_ids.seats.clone() {
                 if id == seat.open_web {
                     if let Some(port) = self.seat_port(&seat.name) {
-                        let _ = webbrowser::open(&format!("https://localhost:{}/", port + 1));
+                        let _ = open::that(&format!("https://localhost:{}/", port + 1));
                     }
                 } else if id == seat.move_foreground {
                     self.move_foreground_to_seat(&seat.name);
@@ -520,27 +520,23 @@ impl TrayApp {
             }
 
             if failed.is_empty() {
-                rfd::MessageDialog::new()
-                    .set_title("Apollo Fleet")
-                    .set_description(format!(
-                        "Credentials applied to {} seat(s).",
-                        snapshots.len()
-                    ))
-                    .show();
+                win::msgbox::info(
+                    "Apollo Fleet",
+                    &format!("Credentials applied to {} seat(s).", snapshots.len()),
+                );
             } else {
                 let detail = failed
                     .iter()
                     .map(|(n, m)| format!("  - {n}: {m}"))
                     .collect::<Vec<_>>()
                     .join("\n");
-                rfd::MessageDialog::new()
-                    .set_level(rfd::MessageLevel::Error)
-                    .set_title("Apollo Fleet")
-                    .set_description(format!(
+                win::msgbox::error(
+                    "Apollo Fleet",
+                    &format!(
                         "Failed to set credentials on {} seat(s):\n{detail}",
                         failed.len()
-                    ))
-                    .show();
+                    ),
+                );
             }
         });
     }
