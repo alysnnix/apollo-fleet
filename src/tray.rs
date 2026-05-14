@@ -269,6 +269,14 @@ impl TrayApp {
         let menu = Menu::new();
         let mut ids = MenuIds::default();
 
+        let header = MenuItem::new(
+            format!("Apollo Fleet v{}", env!("CARGO_PKG_VERSION")),
+            false,
+            None,
+        );
+        let _ = menu.append(&header);
+        let _ = menu.append(&PredefinedMenuItem::separator());
+
         let status = MenuItem::new(format!("Status: {}", self.status_label()), false, None);
         let _ = menu.append(&status);
         let _ = menu.append(&PredefinedMenuItem::separator());
