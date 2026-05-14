@@ -1,0 +1,65 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Apollo Fleet version
+      placeholder: v0.4.1
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: From `winver` — e.g. "Windows 11 24H2 26100.2894"
+    validations:
+      required: true
+
+  - type: input
+    id: apollo
+    attributes:
+      label: Apollo / Sunshine version
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant excerpts from `<state_dir>/<seat>/sunshine.log`, `<state_dir>/<seat>/fleet.log`, or `%TEMP%/apollo-fleet-launcher.log`. Wrap in triple backticks.
+      render: shell
+
+  - type: textarea
+    id: config
+    attributes:
+      label: seats.toml (redacted)
+      description: Strip credentials and paths if sensitive.
+      render: toml

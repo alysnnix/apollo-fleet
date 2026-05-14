@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Apollo (upstream) issues
+    url: https://github.com/ClassicOldSong/Apollo/issues
+    about: For bugs in the Apollo / Sunshine streaming server itself.
+  - name: Moonlight client issues
+    url: https://github.com/moonlight-stream
+    about: For bugs in the Moonlight client (Android, iOS, PC, etc.).

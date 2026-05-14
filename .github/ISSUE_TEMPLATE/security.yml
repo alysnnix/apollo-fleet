@@ -1,0 +1,64 @@
+name: Security report
+description: Report a vulnerability or security concern
+title: "[security] "
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Apollo Fleet has a public vulnerability disclosure policy — see [SECURITY.md](https://github.com/alysnnix/apollo-fleet/blob/main/SECURITY.md). If you believe the report needs coordinated disclosure timing, use a [private security advisory](https://github.com/alysnnix/apollo-fleet/security/advisories/new) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: Affected version
+      description: Apollo Fleet version where you observed the issue (see tray menu top, or `--version`).
+      placeholder: v0.4.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One paragraph: what's the bug and why is it a security issue?
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: What can an attacker achieve? Local code execution? Credential leak? Persistence? Bypass of a security control?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Numbered steps, exact commands, config snippets, screenshots if helpful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested fix or workaround
+      description: Optional. If you already know how to address it.
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows build (`winver`), GPU + driver, Apollo version, anything relevant.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmations
+      options:
+        - label: I've read SECURITY.md and understand this report will be public.
+          required: true
+        - label: This issue is in Apollo Fleet itself, not in Apollo / Sunshine / Moonlight.
+          required: true

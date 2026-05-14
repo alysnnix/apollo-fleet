@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a new capability or improvement
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the user pain. Avoid jumping to a specific implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Other approaches you weighed and why you didn't pick them.
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Anything explicitly out of scope?
