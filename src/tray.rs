@@ -54,6 +54,7 @@ struct SeatMenuIds {
 #[derive(Debug)]
 enum UserEvent {
     Refresh,
+    MenuRebuild,
 }
 
 pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
@@ -90,7 +91,8 @@ pub fn run(config_path: PathBuf, skip_sink_check: bool) -> Result<()> {
         Ok(Some(update)) => {
             log::info!("[update] new version available: v{}", update.version);
             *update_state_check.lock() = Some(update);
-            let _ = update_proxy.send_event(UserEvent::Refresh);
+            // MenuRebuild (not Refresh) so the new item actually appears in the menu.
+            let _ = update_proxy.send_event(UserEvent::MenuRebuild);
         }
         Ok(None) => log::info!("[update] up to date"),
         Err(e) => log::warn!("[update] check failed: {e:#}"),
@@ -136,6 +138,10 @@ impl ApplicationHandler<UserEvent> for TrayApp {
                 if self.should_exit() {
                     event_loop.exit();
                 }
+            }
+            UserEvent::MenuRebuild => {
+                self.refresh_tray();
+                self.rebuild_menu();
             }
         }
     }

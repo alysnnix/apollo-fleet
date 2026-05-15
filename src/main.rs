@@ -56,10 +56,7 @@ struct Cli {
 }
 
 fn main() -> ExitCode {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .target(env_logger::Target::Stdout)
-        .init();
-
+    init_logging();
     let cli = Cli::parse();
 
     let result = run(cli);
@@ -70,6 +67,24 @@ fn main() -> ExitCode {
             ExitCode::from(1)
         }
     }
+}
+
+fn init_logging() {
+    // Tray mode runs under #[windows_subsystem = "windows"], so stdout is detached.
+    // Log to %TEMP%\apollo-fleet.log so the user (and reports) can read it. CLI modes
+    // (--supervisor, --list-sinks, etc.) still see logs by reading that file.
+    let log_path = std::env::temp_dir().join("apollo-fleet.log");
+    let mut builder =
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
+    match std::fs::File::create(&log_path) {
+        Ok(file) => {
+            builder.target(env_logger::Target::Pipe(Box::new(file)));
+        }
+        Err(_) => {
+            builder.target(env_logger::Target::Stdout);
+        }
+    }
+    let _ = builder.try_init();
 }
 
 fn run(cli: Cli) -> Result<u8> {
