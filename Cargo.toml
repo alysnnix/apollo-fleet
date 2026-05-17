@@ -1,6 +1,6 @@
 [package]
 name = "apollo-fleet"
-version = "0.5.4"
+version = "0.5.5"
 edition = "2021"
 description = "Supervise N isolated Apollo (Sunshine) instances on one Windows host"
 license = "GPL-3.0-or-later"
