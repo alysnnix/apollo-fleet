@@ -139,8 +139,8 @@ impl Fleet {
             inner.seat_monitor.clear();
             let state = build_shared_state(&inner);
             let _ = shared_state::write(&state);
-            if !inner.seats.is_empty() {
-                spawn_index(&mut inner, 0);
+            for idx in 0..inner.seats.len() {
+                spawn_index(&mut inner, idx);
             }
             let master = inner.seats.first().map(|s| SeatRef {
                 name: s.cfg.name.clone(),
