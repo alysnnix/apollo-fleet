@@ -18,7 +18,6 @@ use std::process::Command;
 use anyhow::{anyhow, Context, Result};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-const DETACHED_PROCESS: u32 = 0x0000_0008;
 const RELEASES_URL: &str =
     "https://api.github.com/repos/alysnnix/apollo-fleet/releases/latest";
 const ASSET_NAME: &str = "ApolloFleet.exe";
@@ -125,21 +124,61 @@ pub fn download_and_stage(update: &AvailableUpdate) -> Result<PathBuf> {
 }
 
 /// Write a batch file that waits for our PID to exit, swaps `staged` over the
-/// current exe, and launches the new one. Spawn it detached, return Ok. The
-/// caller is expected to clean-stop the fleet and exit shortly afterward.
+/// current exe, and launches the new one. Spawn it with CREATE_NO_WINDOW (a
+/// hidden console; `timeout` and console-attached helpers need a real console,
+/// so DETACHED_PROCESS is avoided) and return Ok. The caller is expected to
+/// clean-stop the fleet and exit shortly afterward.
+///
+/// All batch output is captured to `%TEMP%\apollo-fleet-update.log` so failed
+/// swaps are diagnosable.
 pub fn launch_apply(staged: &Path) -> Result<()> {
     let current_exe = std::env::current_exe().context("current_exe")?;
     let pid = std::process::id();
     let batch_path = std::env::temp_dir().join("apollo-fleet-update.bat");
+    let log_path = std::env::temp_dir().join("apollo-fleet-update.log");
 
     let script = format!(
         "@echo off\r\n\
-         :wait\r\n\
-         tasklist /FI \"PID eq {pid}\" | findstr {pid} >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\n\
-         move /Y \"{staged}\" \"{current}\"\r\n\
-         if errorlevel 1 exit /b 1\r\n\
-         start \"\" \"{current}\"\r\n\
+         setlocal\r\n\
+         set \"LOG={log}\"\r\n\
+         set \"STAGED={staged}\"\r\n\
+         set \"TARGET={current}\"\r\n\
+         set \"PARENT_PID={pid}\"\r\n\
+         echo [%date% %time%] updater start pid=%PARENT_PID% > \"%LOG%\"\r\n\
+         echo [%date% %time%] staged=%STAGED% >> \"%LOG%\"\r\n\
+         echo [%date% %time%] target=%TARGET% >> \"%LOG%\"\r\n\
+         set /a waits=0\r\n\
+         :wait_parent\r\n\
+         tasklist /FI \"PID eq %PARENT_PID%\" /NH 2>nul | find \"%PARENT_PID%\" >nul\r\n\
+         if errorlevel 1 goto parent_gone\r\n\
+         set /a waits+=1\r\n\
+         if %waits% GEQ 60 (\r\n\
+             echo [%date% %time%] parent still alive after %waits% checks, proceeding >> \"%LOG%\"\r\n\
+             goto parent_gone\r\n\
+         )\r\n\
+         ping -n 2 127.0.0.1 >nul\r\n\
+         goto wait_parent\r\n\
+         :parent_gone\r\n\
+         echo [%date% %time%] parent exited after %waits% cycles >> \"%LOG%\"\r\n\
+         ping -n 2 127.0.0.1 >nul\r\n\
+         set /a tries=0\r\n\
+         :try_move\r\n\
+         set /a tries+=1\r\n\
+         echo [%date% %time%] move attempt %tries% >> \"%LOG%\"\r\n\
+         move /Y \"%STAGED%\" \"%TARGET%\" >> \"%LOG%\" 2>&1\r\n\
+         if not errorlevel 1 goto move_ok\r\n\
+         if %tries% LSS 15 (\r\n\
+             ping -n 3 127.0.0.1 >nul\r\n\
+             goto try_move\r\n\
+         )\r\n\
+         echo [%date% %time%] move failed after %tries% attempts, giving up >> \"%LOG%\"\r\n\
+         exit /b 1\r\n\
+         :move_ok\r\n\
+         echo [%date% %time%] move succeeded on attempt %tries% >> \"%LOG%\"\r\n\
+         start \"\" \"%TARGET%\"\r\n\
+         echo [%date% %time%] new process launched >> \"%LOG%\"\r\n\
          del \"%~f0\"\r\n",
+        log = log_path.display(),
         pid = pid,
         staged = staged.display(),
         current = current_exe.display(),
@@ -151,7 +190,7 @@ pub fn launch_apply(staged: &Path) -> Result<()> {
             "/C",
             batch_path.to_str().ok_or_else(|| anyhow!("bad path"))?,
         ])
-        .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
+        .creation_flags(CREATE_NO_WINDOW)
         .spawn()
         .context("spawn update batch")?;
     Ok(())
