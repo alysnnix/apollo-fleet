@@ -433,9 +433,10 @@ impl TrayApp {
                 }
                 Err(e) => {
                     let msg = format!("{e:#}");
+                    log::error!("[fleet] could not start: {msg}");
                     self.last_error.lock().replace(msg.clone());
                     drop(guard);
-                    self.notify("Fleet config error", &msg);
+                    win::msgbox::error("Apollo Fleet - could not start", &msg);
                     return;
                 }
             }

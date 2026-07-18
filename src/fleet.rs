@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -31,12 +31,31 @@ pub fn build(config_path: &Path, skip_sink_check: bool) -> Result<Fleet> {
             log::warn!("[fleet] {warning}");
         }
     }
-    std::fs::create_dir_all(&cfg.state_dir)?;
+    let state_dir = resolve_state_dir(&cfg.state_dir);
     let mut seats: Vec<Seat> = Vec::with_capacity(cfg.seats.len());
     for s in cfg.seats {
-        seats.push(Seat::new(s, cfg.apollo_path.clone(), &cfg.state_dir)?);
+        seats.push(Seat::new(s, cfg.apollo_path.clone(), &state_dir)?);
     }
     Ok(Fleet::new(seats))
+}
+
+/// A config copied from another machine can carry a `state_dir` this user can't
+/// write (e.g. another account's profile path). Fall back to the current user's
+/// home dir instead of failing the whole fleet.
+fn resolve_state_dir(configured: &Path) -> PathBuf {
+    if std::fs::create_dir_all(configured).is_ok() {
+        return configured.to_path_buf();
+    }
+    let fallback = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".apollo-fleet");
+    log::warn!(
+        "[fleet] state_dir '{}' not writable; using '{}'",
+        configured.display(),
+        fallback.display()
+    );
+    let _ = std::fs::create_dir_all(&fallback);
+    fallback
 }
 
 pub struct Fleet {

@@ -27,7 +27,11 @@
 # can't steal focus from the host's physical keyboard/mouse.
 
 apollo_path = 'C:\Program Files\Apollo\sunshine.exe'
-state_dir   = 'C:\Users\aly\.apollo-fleet'
+
+# state_dir: where per-seat state is stored. Leave this commented out to use
+# %USERPROFILE%\.apollo-fleet for whoever runs Apollo Fleet. Only set it if you
+# want a custom location; never hardcode another machine's user folder.
+# state_dir = 'D:\apollo-fleet-state'
 
 [[seat]]
 name         = "desk-1"
