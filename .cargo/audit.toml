@@ -1,0 +1,7 @@
+[advisories]
+# quick-xml is pulled by Linux Wayland scanner dependencies from tray-icon/winit.
+# apollo-fleet is Windows-only (see src/main.rs cfg(windows)).
+ignore = [
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]
