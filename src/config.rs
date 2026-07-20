@@ -20,6 +20,8 @@ pub struct RawSeat {
     pub audio_sink: String,
     #[serde(default)]
     pub gamepad_only: bool,
+    #[serde(default)]
+    pub primary: bool,
     #[serde(flatten)]
     pub extra: BTreeMap<String, toml::Value>,
 }
@@ -30,6 +32,7 @@ pub struct SeatCfg {
     pub port: u16,
     pub audio_sink: String,
     pub gamepad_only: bool,
+    pub primary: bool,
     pub extra: BTreeMap<String, toml::Value>,
 }
 
@@ -59,7 +62,8 @@ pub fn load(path: &Path) -> Result<LoadedConfig> {
             .join(".apollo-fleet")
     });
 
-    let known: HashSet<&str> = ["name", "port", "audio_sink", "gamepad_only"].into_iter().collect();
+    let known: HashSet<&str> =
+        ["name", "port", "audio_sink", "gamepad_only", "primary"].into_iter().collect();
     let mut seen_names: HashSet<String> = HashSet::new();
     let mut seen_ports: HashSet<u16> = HashSet::new();
     let mut seats = Vec::with_capacity(raw.seats.len());
@@ -81,6 +85,7 @@ pub fn load(path: &Path) -> Result<LoadedConfig> {
             port: s.port,
             audio_sink: s.audio_sink,
             gamepad_only: s.gamepad_only,
+            primary: s.primary,
             extra,
         });
     }

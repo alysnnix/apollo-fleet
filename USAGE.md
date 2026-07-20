@@ -77,6 +77,7 @@ name         = "desk-1"
 port         = 47989
 audio_sink   = "Steam Streaming Speakers"
 gamepad_only = false
+primary      = true
 
 [[seat]]
 name         = "desk-2"
@@ -93,6 +94,7 @@ Keys per seat:
 | `port`         | yes      | Apollo's primary HTTPS port. Apollo derives ~25 additional ports from this base, so leave at least **40 ports between seats** to avoid range collisions.             |
 | `audio_sink`   | no       | The exact friendly name of the Windows playback endpoint to capture. Use **Show audio diagnostics** in the tray to list candidates. If empty, Apollo uses the default sink. |
 | `gamepad_only` | no       | If `true`, the streamed client can only use gamepad input. Keyboard/mouse from the client are blocked so they can't steal focus from the host's input devices.       |
+| `primary`      | no       | If `true`, this seat's streamed display becomes the Windows **primary** monitor when a client connects (`dd_configuration_option = ensure_primary`). Otherwise the display is activated as secondary (`ensure_active`). Set it on the one seat that should own the primary desktop. |
 
 You can also include any Apollo-native config key in `[[seat]]`; unknown keys are passed through to that seat's `sunshine.conf`. Example: `min_log_level = "warning"`.
 
@@ -158,8 +160,9 @@ The first seat in `seats.toml` is the **master**. Edit its config via Apollo's w
 - `sunshine_name`, `port`, `audio_sink`
 - `file_apps`, `file_state`, `log_path`, `cert`, `pkey`, `credentials_file`
 - `keyboard`, `mouse`, `controller` (when `gamepad_only = true`)
+- `dd_configuration_option` (derived from each seat's `primary` flag)
 
-Everything else (encoder, bitrate, fps, qp, hevc_mode, etc.) is copied from master. Apollo Fleet's managed keys (`system_tray = disabled`, `headless_mode = enabled`, `dd_configuration_option = ensure_active`) are always re-applied so they can't be turned off via the web UI by accident.
+Everything else (encoder, bitrate, fps, qp, hevc_mode, etc.) is copied from master. Apollo Fleet's managed keys (`system_tray = disabled`, `headless_mode = enabled`) are always re-applied so they can't be turned off via the web UI by accident.
 
 Affected non-master seats are restarted automatically; the master is left alone. A connected master client sees no interruption.
 

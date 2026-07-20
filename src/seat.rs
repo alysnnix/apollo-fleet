@@ -74,6 +74,11 @@ impl Seat {
 
     fn write_config(&self) -> Result<()> {
         let s = &self.state_dir;
+        let dd_option = if self.cfg.primary {
+            "ensure_primary"
+        } else {
+            "ensure_active"
+        };
         let mut opts: Vec<(String, String)> = vec![
             ("sunshine_name".into(), self.cfg.name.clone()),
             ("port".into(), self.cfg.port.to_string()),
@@ -84,7 +89,7 @@ impl Seat {
             ("pkey".into(), s.join("pkey.pem").display().to_string()),
             ("credentials_file".into(), s.join("credentials.json").display().to_string()),
             ("headless_mode".into(), "enabled".into()),
-            ("dd_configuration_option".into(), "ensure_active".into()),
+            ("dd_configuration_option".into(), dd_option.into()),
             ("system_tray".into(), "disabled".into()),
         ];
         if !self.cfg.audio_sink.is_empty() {

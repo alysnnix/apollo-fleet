@@ -32,6 +32,7 @@ const PER_SEAT_KEYS: &[&str] = &[
     "keyboard",
     "mouse",
     "controller",
+    "dd_configuration_option",
 ];
 
 /// Keys that Apollo Fleet manages — re-applied verbatim after every propagation so the
@@ -39,7 +40,6 @@ const PER_SEAT_KEYS: &[&str] = &[
 const ALWAYS_OURS: &[(&str, &str)] = &[
     ("system_tray", "disabled"),
     ("headless_mode", "enabled"),
-    ("dd_configuration_option", "ensure_active"),
 ];
 
 const DEBOUNCE: Duration = Duration::from_millis(500);
@@ -284,5 +284,14 @@ mod tests {
         assert!(merged.contains("encoder = nvenc"));
         assert!(merged.contains("fps = 60"));
         assert!(merged.contains("system_tray = disabled"));
+    }
+
+    #[test]
+    fn dd_configuration_option_stays_per_seat() {
+        let master = parse_conf("dd_configuration_option = ensure_active\nencoder = nvenc\n");
+        let seat = parse_conf("dd_configuration_option = ensure_primary\nport = 48029\n");
+        let merged = write_conf(&merge(&master, &seat));
+        assert!(merged.contains("dd_configuration_option = ensure_primary"));
+        assert!(!merged.contains("ensure_active"));
     }
 }
